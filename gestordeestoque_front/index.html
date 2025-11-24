@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="CTRL MANAGER - Sistema completo de gestão de estoque com dashboard, relatórios e controle de movimentações">
+    <meta name="keywords" content="gestão de estoque, inventário, produtos, fornecedores, relatórios">
+    <meta name="author" content="CTRL MANAGER - Sistema de Gestão de Estoque">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Gestão de Estoque">
+    <meta name="msapplication-TileColor" content="#2563eb">
+    <meta name="msapplication-config" content="browserconfig.xml">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📦</text></svg>">
+    <title>Sistema de Gestão de Estoque</title>
+    <link rel="stylesheet" href="./style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header" role="banner">
+            <div class="header-content">
+                <div class="header-title">
+                    <h1>
+                        CTRL Manager
+                    </h1>
+                    <p class="header-subtitle">Sistema de controle completo de inventário e gestão de estoque</p>
+                </div>
+                <div class="header-controls">
+                    <button class="theme-toggle" id="themeToggle" aria-label="Alternar tema" title="Alternar entre modo claro e escuro">
+                        <span class="theme-icon">🌙</span>
+                    </button>
+                </div>
+            </div>
+            <nav class="nav-tabs" role="navigation" aria-label="Navegação principal">
+                <button class="tab-btn active" data-tab="dashboard" aria-current="page">
+                    Dashboard
+                </button>
+                <button class="tab-btn" data-tab="produtos">
+                    Produtos
+                </button>
+                <button class="tab-btn" data-tab="categorias">
+                    Categorias
+                </button>
+                <button class="tab-btn" data-tab="fornecedores">
+                    Fornecedores
+                </button>
+                <button class="tab-btn" data-tab="estoque">
+                    Estoque
+                </button>
+                <button class="tab-btn" data-tab="relatorios">
+                    Relatórios
+                </button>
+            </nav>
+        </header>
+
+        <!-- Dashboard Section -->
+        <main id="dashboard" class="tab-content active" role="main">
+            <header class="section-header">
+                <div class="section-title">
+                    <h2>Dashboard</h2>
+                    <p class="section-description">Visão geral dos indicadores do seu estoque</p>
+                </div>
+                <div class="section-actions">
+                    <button class="btn btn-primary" onclick="refreshDashboard()" aria-label="Atualizar dados do dashboard">
+                        Atualizar
+                    </button>
+                </div>
+            </header>
+
+            <!-- KPIs -->
+            <section class="kpi-container" aria-label="Indicadores principais">
+                <article class="kpi-card">
+                    <div class="kpi-icon" aria-hidden="true"></div>
+                    <div class="kpi-content">
+                        <h3 id="totalProdutos" class="kpi-value">0</h3>
+                        <p class="kpi-label">Total de Produtos</p>
+                    </div>
+                </article>
+                <article class="kpi-card">
+                    <div class="kpi-icon" aria-hidden="true"></div>
+                    <div class="kpi-content">
+                        <h3 id="totalCategorias" class="kpi-value">0</h3>
+                        <p class="kpi-label">Categorias Ativas</p>
+                    </div>
+                </article>
+                <article class="kpi-card">
+                    <div class="kpi-icon" aria-hidden="true"></div>
+                    <div class="kpi-content">
+                        <h3 id="totalFornecedores" class="kpi-value">0</h3>
+                        <p class="kpi-label">Fornecedores Ativos</p>
+                    </div>
+                </article>
+                <article class="kpi-card warning">
+                    <div class="kpi-icon" aria-hidden="true"></div>
+                    <div class="kpi-content">
+                        <h3 id="produtosBaixoEstoque" class="kpi-value">0</h3>
+                        <p class="kpi-label">Produtos com Estoque Baixo</p>
+                    </div>
+                </article>
+            </section>
+
+            <!-- Charts -->
+            <section class="charts-container" aria-label="Gráficos e análises">
+                <article class="chart-card">
+                    <header class="chart-header">
+                        <h3>Top 10 - Produtos com Maior Saída</h3>
+                        <p class="chart-description">Produtos com maior volume de saída</p>
+                    </header>
+                    <div class="chart-container">
+                        <canvas id="topSaidasChart" role="img" aria-label="Gráfico dos produtos com maior saída"></canvas>
+                    </div>
+                </article>
+                <article class="chart-card">
+                    <header class="chart-header">
+                        <h3>Top 10 - Produtos com Menor Saída</h3>
+                        <p class="chart-description">Produtos com menor volume de saída</p>
+                    </header>
+                    <div class="chart-container">
+                        <canvas id="menosSaidasChart" role="img" aria-label="Gráfico dos produtos com menor saída"></canvas>
+                    </div>
+                </article>
+                <article class="chart-card">
+                    <header class="chart-header">
+                        <h3>Distribuição por Categorias</h3>
+                        <p class="chart-description">Distribuição dos produtos por categoria</p>
+                    </header>
+                    <div class="chart-container">
+                        <canvas id="categoriasChart" role="img" aria-label="Gráfico de distribuição por categorias"></canvas>
+                    </div>
+                </article>
+                <article class="chart-card">
+                    <header class="chart-header">
+                        <h3>Status do Estoque</h3>
+                        <p class="chart-description">Visão geral do status do estoque</p>
+                    </header>
+                    <div class="chart-container">
+                        <canvas id="estoqueStatusChart" role="img" aria-label="Gráfico do status do estoque"></canvas>
+                    </div>
+                </article>
+                <article class="chart-card">
+                    <header class="chart-header">
+                        <h3>Movimentações dos Últimos 7 Dias</h3>
+                        <p class="chart-description">Histórico de movimentações recentes</p>
+                    </header>
+                    <div class="chart-container">
+                        <canvas id="movimentacoesChart" role="img" aria-label="Gráfico de movimentações dos últimos 7 dias"></canvas>
+                    </div>
+                </article>
+            </section>
+
+            <!-- Produtos com Estoque Baixo -->
+            <section class="alert-section" aria-label="Alertas de estoque baixo">
+                <header class="alert-header">
+                    <h3>
+                        Produtos Precisando de Reposição
+                    </h3>
+                    <p class="alert-description">Lista de produtos com estoque abaixo do mínimo</p>
+                </header>
+                <div class="table-container">
+                    <div class="table-wrapper">
+                        <table id="produtosBaixoEstoqueTable" role="table" aria-label="Tabela de produtos com estoque baixo">
+                            <thead>
+                                <tr role="row">
+                                    <th scope="col">Código</th>
+                                    <th scope="col">Produto</th>
+                                    <th scope="col">Estoque Atual</th>
+                                    <th scope="col">Estoque Mínimo</th>
+                                    <th scope="col">Categoria</th>
+                                    <th scope="col">Fornecedor</th>
+                                </tr>
+                            </thead>
+                            <tbody role="rowgroup"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Produtos Section -->
+        <section id="produtos" class="tab-content">
+            <header class="section-header">
+                <div class="section-title">
+                    <h2>Produtos</h2>
+                    <p class="section-description">Gerencie seu catálogo de produtos</p>
+                </div>
+                <div class="section-actions">
+                    <button class="btn btn-success" onclick="exportProductsExcel()">
+                        <span class="btn-icon" aria-hidden="true">📊</span>
+                        Exportar Excel
+                    </button>
+                    <button class="btn btn-primary" onclick="openProductModal()">
+                        <span class="btn-icon" aria-hidden="true">➕</span>
+                        Novo Produto
+                    </button>
+                </div>
+            </header>
+
+            <div class="filters">
+                <input type="text" id="filterProdutoNome" placeholder="Filtrar por nome" onkeyup="filterProducts()">
+                <select id="filterProdutoCategoria" onchange="filterProducts()">
+                    <option value="">Todas as categorias</option>
+                </select>
+                <select id="filterProdutoFornecedor" onchange="filterProducts()">
+                    <option value="">Todos os fornecedores</option>
+                </select>
+            </div>
+
+            <div class="table-container">
+                <table id="produtosTable">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Nome</th>
+                            <th>Categoria</th>
+                            <th>Fornecedor</th>
+                            <th>Preço</th>
+                            <th>Estoque Atual</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Categorias Section -->
+        <section id="categorias" class="tab-content">
+            <header class="section-header">
+                <div class="section-title">
+                    <h2>Categorias</h2>
+                    <p class="section-description">Organize seus produtos por categorias</p>
+                </div>
+                <div class="section-actions">
+                    <button class="btn btn-primary" onclick="openCategoryModal()">
+                        <span class="btn-icon" aria-hidden="true">➕</span>
+                        Nova Categoria
+                    </button>
+                </div>
+            </header>
+
+            <div class="table-container">
+                <table id="categoriasTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nome</th>
+                            <th>Descrição</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Fornecedores Section -->
+        <section id="fornecedores" class="tab-content">
+            <header class="section-header">
+                <div class="section-title">
+                    <h2>Fornecedores</h2>
+                    <p class="section-description">Gerencie seus parceiros de fornecimento</p>
+                </div>
+                <div class="section-actions">
+                    <button class="btn btn-primary" onclick="openSupplierModal()">
+                        <span class="btn-icon" aria-hidden="true">➕</span>
+                        Novo Fornecedor
+                    </button>
+                </div>
+            </header>
+
+            <div class="table-container">
+                <table id="fornecedoresTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nome</th>
+                            <th>Email</th>
+                            <th>Telefone</th>
+                            <th>CNPJ</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Estoque Section -->
+        <section id="estoque" class="tab-content">
+            <header class="section-header">
+                <div class="section-title">
+                    <h2>Estoque</h2>
+                    <p class="section-description">Controle entradas e saídas de produtos</p>
+                </div>
+            </header>
+
+            <div class="estoque-actions">
+                <div class="action-card">
+                    <h3>Entrada de Estoque</h3>
+                    <select id="produtoEntrada" onchange="updateSaldoInfo('produtoEntrada','saldoEntradaInfo')">
+                        <option value="">Selecione um produto</option>
+                    </select>
+                    <div id="saldoEntradaInfo" class="text-right" style="margin-bottom:8px;color:var(--text-muted);font-size:12px;">Saldo: -</div>
+                    <input type="number" id="quantidadeEntrada" placeholder="Quantidade" min="1" step="1" inputmode="numeric">
+                    <input type="text" id="usuarioEntrada" placeholder="Usuário responsável" value="lubcarv">
+                    <input type="text" id="observacaoEntrada" placeholder="Observação (opcional)">
+                    <button class="btn btn-success" onclick="entradaEstoque()">Registrar Entrada</button>
+                </div>
+
+                <div class="action-card">
+                    <h3>Saída de Estoque</h3>
+                    <select id="produtoSaida" onchange="updateSaldoInfo('produtoSaida','saldoSaidaInfo')">
+                        <option value="">Selecione um produto</option>
+                    </select>
+                    <div id="saldoSaidaInfo" class="text-right" style="margin-bottom:8px;color:var(--text-muted);font-size:12px;">Saldo: -</div>
+                    <input type="number" id="quantidadeSaida" placeholder="Quantidade" min="1" step="1" inputmode="numeric">
+                    <input type="text" id="usuarioSaida" placeholder="Usuário responsável" value="lubcarv">
+                    <input type="text" id="observacaoSaida" placeholder="Observação (opcional)">
+                    <button class="btn btn-danger" onclick="saidaEstoque()">Registrar Saída</button>
+                </div>
+            </div>
+
+            <div class="section-header">
+                <h3>Histórico de Movimentações</h3>
+                <select id="produtoHistorico" onchange="loadMovimentacoes()">
+                    <option value="">Selecione um produto para ver o histórico</option>
+                </select>
+            </div>
+
+            <div class="table-container">
+                <table id="movimentacoesTable">
+                    <thead>
+                        <tr>
+                            <th>Data/Hora</th>
+                            <th>Código</th>
+                            <th>Produto</th>
+                            <th>Tipo</th>
+                            <th>Quantidade</th>
+                            <th>Usuário</th>
+                            <th>Observação</th>
+                            <th>Saldo</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Relatórios Section -->
+        <section id="relatorios" class="tab-content">
+            <header class="section-header">
+                <div class="section-title">
+                    <h2>Relatórios</h2>
+                    <p class="section-description">Gere relatórios e exporte dados</p>
+                </div>
+            </header>
+
+            <div class="reports-container">
+                <div class="report-card">
+                    <h3>Relatórios de Produtos</h3>
+                    <p>Exporte dados completos dos produtos cadastrados</p>
+                    <div class="report-actions">
+                        <button class="btn btn-success" onclick="exportProductsPDF()">PDF</button>
+                        <button class="btn btn-primary" onclick="exportProductsExcel()">Excel</button>
+                    </div>
+                </div>
+
+                <div class="report-card">
+                    <h3>Relatório de Movimentações</h3>
+                    <p>Histórico completo de entradas e saídas</p>
+                    <div class="report-filters">
+                        <input type="date" id="dataInicioMovimentacoes">
+                        <input type="date" id="dataFimMovimentacoes">
+                        <select id="tipoMovimentacao">
+                            <option value="">Todos os tipos</option>
+                            <option value="ENTRADA">Apenas Entradas</option>
+                            <option value="SAIDA">Apenas Saídas</option>
+                        </select>
+                    </div>
+                    <div class="report-actions">
+                        <button class="btn btn-success" onclick="exportMovimentacoesPDF()">PDF</button>
+                        <button class="btn btn-primary" onclick="exportMovimentacoesExcel()">Excel</button>
+                    </div>
+                </div>
+
+                <div class="report-card">
+                    <h3>Produtos com Estoque Baixo</h3>
+                    <p>Lista de produtos que precisam de reposição</p>
+                    <div class="report-actions">
+                        <button class="btn btn-warning" onclick="exportEstoqueBaixoPDF()">PDF</button>
+                        <button class="btn btn-primary" onclick="exportEstoqueBaixoExcel()">Excel</button>
+                    </div>
+                </div>
+
+                <div class="report-card">
+                    <h3>Relatório por Categoria</h3>
+                    <p>Análise de produtos agrupados por categoria</p>
+                    <div class="report-filters">
+                        <select id="categoriaRelatorio">
+                            <option value="">Todas as categorias</option>
+                        </select>
+                    </div>
+                    <div class="report-actions">
+                        <button class="btn btn-success" onclick="exportCategoriaPDF()">PDF</button>
+                        <button class="btn btn-primary" onclick="exportCategoriaExcel()">Excel</button>
+                    </div>
+                </div>
+
+                <div class="report-card">
+                    <h3>Relatório por Fornecedor</h3>
+                    <p>Produtos agrupados por fornecedor</p>
+                    <div class="report-filters">
+                        <select id="fornecedorRelatorio">
+                            <option value="">Todos os fornecedores</option>
+                        </select>
+                    </div>
+                    <div class="report-actions">
+                        <button class="btn btn-success" onclick="exportFornecedorPDF()">PDF</button>
+                        <button class="btn btn-primary" onclick="exportFornecedorExcel()">Excel</button>
+                    </div>
+                </div>
+
+                <div class="report-card">
+                    <h3>Dashboard Completo</h3>
+                    <p>Relatório executivo com gráficos e KPIs</p>
+                    <div class="report-actions">
+                        <button class="btn btn-success" onclick="exportDashboardPDF()">PDF Executivo</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Modal Produto -->
+    <div id="productModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="productModalTitle">Novo Produto</h3>
+                <span class="close" onclick="closeProductModal()">&times;</span>
+            </div>
+            <form id="productForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="productCodigo">Código *</label>
+                        <input type="text" id="productCodigo" required maxlength="50">
+                    </div>
+                    <div class="form-group">
+                        <label for="productNome">Nome *</label>
+                        <input type="text" id="productNome" required minlength="2" maxlength="100">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="productDescricao">Descrição</label>
+                    <textarea id="productDescricao" maxlength="500" rows="3"></textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="productPreco">Preço *</label>
+                        <input type="number" id="productPreco" required min="0.01" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label for="productUnidadeMedida">Unidade de Medida *</label>
+                        <input type="text" id="productUnidadeMedida" required maxlength="10" placeholder="ex: UN, KG, L">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="productDimensoes">Dimensões</label>
+                        <input type="text" id="productDimensoes" maxlength="100" placeholder="ex: 10x20x5 cm">
+                    </div>
+                    <div class="form-group">
+                        <label for="productCor">Cor</label>
+                        <input type="text" id="productCor" maxlength="30">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="productQtdMinima">Quantidade Mínima</label>
+                        <input type="number" id="productQtdMinima" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label for="productQtdIdeal">Quantidade Ideal</label>
+                        <input type="number" id="productQtdIdeal" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label for="productQtdMaxima">Quantidade Máxima</label>
+                        <input type="number" id="productQtdMaxima" min="0">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="productCategoria">Categoria *</label>
+                        <select id="productCategoria" required>
+                            <option value="">Selecione uma categoria</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="productFornecedor">Fornecedor *</label>
+                        <select id="productFornecedor" required>
+                            <option value="">Selecione um fornecedor</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="productAtivo" checked>
+                        Produto Ativo
+                    </label>
+                </div>
+
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeProductModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Categoria -->
+    <div id="categoryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="categoryModalTitle">Nova Categoria</h3>
+                <span class="close" onclick="closeCategoryModal()">&times;</span>
+            </div>
+            <form id="categoryForm">
+                <div class="form-group">
+                    <label for="categoryNome">Nome *</label>
+                    <input type="text" id="categoryNome" required minlength="2" maxlength="50">
+                </div>
+                <div class="form-group">
+                    <label for="categoryDescricao">Descrição</label>
+                    <textarea id="categoryDescricao" maxlength="200" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="categoryAtiva" checked>
+                        Categoria Ativa
+                    </label>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeCategoryModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Fornecedor -->
+    <div id="supplierModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="supplierModalTitle">Novo Fornecedor</h3>
+                <span class="close" onclick="closeSupplierModal()">&times;</span>
+            </div>
+            <form id="supplierForm">
+                <div class="form-group">
+                    <label for="supplierNome">Nome *</label>
+                    <input type="text" id="supplierNome" required minlength="2" maxlength="100">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="supplierEmail">Email</label>
+                        <input type="email" id="supplierEmail" maxlength="100">
+                    </div>
+                    <div class="form-group">
+                        <label for="supplierFone">Telefone</label>
+                        <input type="text" id="supplierFone" maxlength="20">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="supplierCnpj">CNPJ</label>
+                    <input type="text" id="supplierCnpj" maxlength="14" placeholder="00000000000000">
+                </div>
+                <div class="form-group">
+                    <label for="supplierEndereco">Endereço</label>
+                    <textarea id="supplierEndereco" maxlength="200" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="supplierAtivo" checked>
+                        Fornecedor Ativo
+                    </label>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeSupplierModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação -->
+    <div id="confirmModal" class="confirm-modal">
+        <div class="confirm-modal-content">
+            <div class="confirm-modal-header">
+                <h3 id="confirmModalTitle">Confirmar Ação</h3>
+            </div>
+            <div class="confirm-modal-body">
+                <p id="confirmModalMessage">Tem certeza que deseja realizar esta ação?</p>
+            </div>
+            <div class="confirm-modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeConfirmModal()">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="confirmModalButton">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="./theme.js"></script>
+    <script src="./api.js"></script>
+    <script src="./storage.js"></script>
+    <script src="./models.js"></script>
+    <script src="./script.js"></script>
+    <script src="./dashboard.js"></script>
+    <script src="./report.js"></script>
+</body>
+
+</html>
