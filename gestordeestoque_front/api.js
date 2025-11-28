@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://gestordeestoquefront.onrender.com";
+const API_BASE_URL = "gestordeestoquefront.onrender.com";
 
 async function apiRequest(path, options = {}) {
   const url = `${API_BASE_URL}${path}`;
@@ -291,5 +291,6 @@ const DashboardAPI = {
     return apiRequest(`/api/dashboard/ultimas-movimentacoes?limite=${limite}`);
   }
 };
+
 
 
