@@ -1,5 +1,4 @@
-const API_BASE_URL = "gestordeestoquefront.onrender.com";
-
+const API_BASE_URL = "https://gestordeestoque.onrender.com";
 async function apiRequest(path, options = {}) {
   const url = `${API_BASE_URL}${path}`;
   const config = {
@@ -13,8 +12,7 @@ async function apiRequest(path, options = {}) {
 
   const response = await fetch(url, config);
   if (!response.ok) {
-    // Tentar extrair mensagem de erro do backend
-    let message = `Erro ${response.status}`;
+    let message = `Erro ${response. status}`;
     try {
       const data = await response.json();
       if (data && (data.message || data.error)) {
@@ -25,7 +23,7 @@ async function apiRequest(path, options = {}) {
     }
     throw new Error(message);
   }
-  // Alguns endpoints 200 sem body
+  
   const contentType = response.headers.get("content-type") || "";
   if (contentType.includes("application/json")) {
     return response.json();
@@ -62,16 +60,13 @@ const CategoriasAPI = {
   },
 };
 
-// Utilitário opcional: sincronizar categorias do backend no armazenamento local
 async function syncCategoriasToLocalStorage() {
   try {
     const categorias = await CategoriasAPI.list();
     if (Array.isArray(categorias)) {
       localStorage.setItem("categorias", JSON.stringify(categorias));
     }
-  } catch (_) {
-    // silencioso: fallback continua funcionando com dados locais
-  }
+  } catch (_) {}
 }
 
 // ==================== FORNECEDORES ====================
@@ -101,16 +96,13 @@ const FornecedoresAPI = {
   },
 };
 
-// Utilitário opcional: sincronizar fornecedores do backend no armazenamento local
 async function syncFornecedoresToLocalStorage() {
   try {
     const fornecedores = await FornecedoresAPI. list();
     if (Array. isArray(fornecedores)) {
       localStorage.setItem("fornecedores", JSON.stringify(fornecedores));
     }
-  } catch (_) {
-    // silencioso
-  }
+  } catch (_) {}
 }
 
 // ==================== PRODUTOS ====================
@@ -183,7 +175,6 @@ const ProdutosAPI = {
   },
 };
 
-// Sincronizar produtos no localStorage, mapeando campos do backend
 async function syncProdutosToLocalStorage() {
   try {
     const produtos = await ProdutosAPI.list();
@@ -199,7 +190,6 @@ async function syncProdutosToLocalStorage() {
       );
 
       const mapped = produtos.map((p) => {
-        // tentar preservar ids existentes pelo id do produto
         const existente = produtosExistentes.find((e) => e.id === p.id);
 
         let categoriaId =
@@ -234,7 +224,7 @@ async function syncProdutosToLocalStorage() {
           categoriaId: categoriaId || null,
           fornecedorId: fornecedorId || null,
           estoqueAtual: p. quantidadeEstoque ?? 0,
-          estoque: p.estoque ?  {
+          estoque: p. estoque ?  {
             quantidade: p.quantidadeEstoque ??  0,
             quantidadeMinima: p.quantidadeMinima ?? 0
           } : null
@@ -291,6 +281,3 @@ const DashboardAPI = {
     return apiRequest(`/api/dashboard/ultimas-movimentacoes?limite=${limite}`);
   }
 };
-
-
-
