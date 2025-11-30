@@ -453,6 +453,7 @@
                 <span class="close" onclick="closeProductModal()">&times;</span>
             </div>
             <form id="productForm">
+                <div class="form-content">
                 <div class="form-row">
                     <div class="form-group">
                         <label for="productCodigo">Código *</label>
@@ -527,6 +528,7 @@
                         Produto Ativo
                     </label>
                 </div>
+                </div>
 
                 <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" onclick="closeProductModal()">Cancelar</button>
@@ -544,6 +546,7 @@
                 <span class="close" onclick="closeCategoryModal()">&times;</span>
             </div>
             <form id="categoryForm">
+                <div class="form-content">
                 <div class="form-group">
                     <label for="categoryNome">Nome *</label>
                     <input type="text" id="categoryNome" required minlength="2" maxlength="50">
@@ -557,6 +560,7 @@
                         <input type="checkbox" id="categoryAtiva" checked>
                         Categoria Ativa
                     </label>
+                </div>
                 </div>
                 <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" onclick="closeCategoryModal()">Cancelar</button>
@@ -574,6 +578,7 @@
                 <span class="close" onclick="closeSupplierModal()">&times;</span>
             </div>
             <form id="supplierForm">
+                <div class="form-content">
                 <div class="form-group">
                     <label for="supplierNome">Nome *</label>
                     <input type="text" id="supplierNome" required minlength="2" maxlength="100">
@@ -601,6 +606,7 @@
                         <input type="checkbox" id="supplierAtivo" checked>
                         Fornecedor Ativo
                     </label>
+                </div>
                 </div>
                 <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" onclick="closeSupplierModal()">Cancelar</button>
