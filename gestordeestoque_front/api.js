@@ -1,4 +1,5 @@
 const API_BASE_URL = "https://gestordeestoque.onrender.com";
+
 async function apiRequest(path, options = {}) {
   const url = `${API_BASE_URL}${path}`;
   const config = {
@@ -12,18 +13,16 @@ async function apiRequest(path, options = {}) {
 
   const response = await fetch(url, config);
   if (!response.ok) {
-    let message = `Erro ${response. status}`;
+    let message = `Erro ${response.status}`;
     try {
       const data = await response.json();
       if (data && (data.message || data.error)) {
         message = data.message || data.error;
       }
     } catch (_) {
-      // ignore JSON parse errors
     }
     throw new Error(message);
   }
-  
   const contentType = response.headers.get("content-type") || "";
   if (contentType.includes("application/json")) {
     return response.json();
@@ -31,7 +30,6 @@ async function apiRequest(path, options = {}) {
   return null;
 }
 
-// ==================== CATEGORIAS ====================
 const CategoriasAPI = {
   async list() {
     return apiRequest("/api/categorias");
@@ -66,10 +64,10 @@ async function syncCategoriasToLocalStorage() {
     if (Array.isArray(categorias)) {
       localStorage.setItem("categorias", JSON.stringify(categorias));
     }
-  } catch (_) {}
+  } catch (_) {
+  }
 }
 
-// ==================== FORNECEDORES ====================
 const FornecedoresAPI = {
   async list() {
     return apiRequest("/api/fornecedores");
@@ -98,11 +96,13 @@ const FornecedoresAPI = {
 
 async function syncFornecedoresToLocalStorage() {
   try {
-    const fornecedores = await FornecedoresAPI. list();
-    if (Array. isArray(fornecedores)) {
-      localStorage.setItem("fornecedores", JSON.stringify(fornecedores));
+    const fornecedores = await FornecedoresAPI.list();
+    if (Array.isArray(fornecedores)) {
+      localStorage.setItem("fornecedores", JSON. stringify(fornecedores));
     }
-  } catch (_) {}
+  } catch (_) {
+    // silencioso
+  }
 }
 
 // ==================== PRODUTOS ====================
@@ -131,8 +131,8 @@ const ProdutosAPI = {
     const q = new URLSearchParams({
       quantidade: String(quantidade),
       usuario: usuario || "",
-    }).toString();
-    return apiRequest(`/api/produtos/${encodeURIComponent(id)}/retirar? ${q}`, {
+    }). toString();
+    return apiRequest(`/api/produtos/${encodeURIComponent(id)}/retirar?${q}`, {
       method: "PUT",
     });
   },
@@ -140,19 +140,19 @@ const ProdutosAPI = {
     const q = new URLSearchParams({
       quantidade: String(quantidade),
       usuario: usuario || "",
-    }).toString();
+    }). toString();
     return apiRequest(`/api/produtos/${encodeURIComponent(id)}/repor?${q}`, {
       method: "PUT",
     });
   },
   async inativar(id, usuario) {
     const q = new URLSearchParams({ usuario: usuario || "" }).toString();
-    return apiRequest(`/api/produtos/${encodeURIComponent(id)}/inativar?${q}`, {
+    return apiRequest(`/api/produtos/${encodeURIComponent(id)}/inativar? ${q}`, {
       method: "PUT",
     });
   },
   async ativar(id, usuario) {
-    const q = new URLSearchParams({ usuario: usuario || "" }).toString();
+    const q = new URLSearchParams({ usuario: usuario || "" }). toString();
     return apiRequest(`/api/produtos/${encodeURIComponent(id)}/ativar?${q}`, {
       method: "PUT",
     });
@@ -167,7 +167,7 @@ const ProdutosAPI = {
     Object.entries(params).forEach(([k, v]) => {
       if (v !== undefined && v !== null && v !== "") q.append(k, String(v));
     });
-    const suffix = q.toString() ? `? ${q.toString()}` : "";
+    const suffix = q.toString() ? `?${q.toString()}` : "";
     return apiRequest(`/api/produtos/filtrar${suffix}`);
   },
   async listEstoqueBaixo() {
@@ -185,25 +185,26 @@ async function syncProdutosToLocalStorage() {
       const fornecedoresLocal = JSON.parse(
         localStorage.getItem("fornecedores") || "[]"
       );
-      const produtosExistentes = JSON. parse(
+      const produtosExistentes = JSON.parse(
         localStorage.getItem("produtos") || "[]"
       );
 
       const mapped = produtos.map((p) => {
-        const existente = produtosExistentes.find((e) => e.id === p.id);
+        // tentar preservar ids existentes pelo id do produto
+        const existente = produtosExistentes.find((e) => e.id === p. id);
 
         let categoriaId =
           p.categoriaId || (existente ? existente.categoriaId : null);
-        if (!categoriaId && p.categoriaNome) {
-          const cat = categoriasLocal.find((c) => c.nome === p. categoriaNome);
+        if (! categoriaId && p.categoriaNome) {
+          const cat = categoriasLocal.find((c) => c.nome === p.categoriaNome);
           if (cat) categoriaId = cat.id;
         }
 
         let fornecedorId =
-          p.fornecedorId || (existente ? existente. fornecedorId : null);
+          p.fornecedorId || (existente ? existente.fornecedorId : null);
         if (!fornecedorId && p.fornecedorNome) {
-          const forn = fornecedoresLocal. find(
-            (f) => f.nome === p.fornecedorNome
+          const forn = fornecedoresLocal.find(
+            (f) => f. nome === p.fornecedorNome
           );
           if (forn) fornecedorId = forn.id;
         }
@@ -212,22 +213,24 @@ async function syncProdutosToLocalStorage() {
           id: p.id,
           codigo: p.codigo,
           nome: p.nome,
-          descricao: p. descricao,
+          descricao: p.descricao,
           preco: p.preco,
           unidadeMedida: p.unidadeMedida,
           dimensoes: p.dimensoes,
-          cor: p. cor,
-          quantidadeMinima: p.quantidadeMinima ?? null,
+          cor: p.cor,
+          quantidadeMinima: p.quantidadeMinima ??  null,
           quantidadeIdeal: p.quantidadeIdeal ?? null,
-          quantidadeMaxima: p. quantidadeMaxima ?? null,
-          ativo: p. ativo,
+          quantidadeMaxima: p.quantidadeMaxima ?? null,
+          ativo: p.ativo,
           categoriaId: categoriaId || null,
           fornecedorId: fornecedorId || null,
-          estoqueAtual: p. quantidadeEstoque ?? 0,
-          estoque: p. estoque ?  {
-            quantidade: p.quantidadeEstoque ??  0,
-            quantidadeMinima: p.quantidadeMinima ?? 0
-          } : null
+          estoqueAtual: p.quantidadeEstoque ?? 0,
+          estoque: p.estoque
+            ? {
+                quantidade: p.quantidadeEstoque ??  0,
+                quantidadeMinima: p.quantidadeMinima ?? 0,
+              }
+            : null,
         };
       });
       localStorage.setItem("produtos", JSON. stringify(mapped));
@@ -235,49 +238,48 @@ async function syncProdutosToLocalStorage() {
   } catch (_) {}
 }
 
-// ==================== DASHBOARD ====================
 const DashboardAPI = {
   async getKPIs(mes, ano) {
     const params = new URLSearchParams();
-    if (mes) params. append('mes', mes);
-    if (ano) params.append('ano', ano);
-    const suffix = params.toString() ? `? ${params.toString()}` : '';
+    if (mes) params.append("mes", mes);
+    if (ano) params. append("ano", ano);
+    const suffix = params.toString() ? `? ${params.toString()}` : "";
     return apiRequest(`/api/dashboard/kpis${suffix}`);
   },
-  
+
   async getTopVendidos(mes, ano, limite = 10) {
     const params = new URLSearchParams();
-    if (mes) params.append('mes', mes);
-    if (ano) params.append('ano', ano);
-    params.append('limite', limite);
-    return apiRequest(`/api/dashboard/top-vendidos?${params.toString()}`);
+    if (mes) params. append("mes", mes);
+    if (ano) params.append("ano", ano);
+    params.append("limite", limite);
+    return apiRequest(`/api/dashboard/top-vendidos? ${params.toString()}`);
   },
-  
+
   async getMenosVendidos(mes, ano, limite = 10) {
     const params = new URLSearchParams();
-    if (mes) params.append('mes', mes);
-    if (ano) params.append('ano', ano);
-    params.append('limite', limite);
+    if (mes) params. append("mes", mes);
+    if (ano) params.append("ano", ano);
+    params. append("limite", limite);
     return apiRequest(`/api/dashboard/menos-vendidos?${params.toString()}`);
   },
-  
+
   async getCategoriasVendidas(mes, ano) {
     const params = new URLSearchParams();
-    if (mes) params. append('mes', mes);
-    if (ano) params.append('ano', ano);
-    const suffix = params.toString() ? `? ${params.toString()}` : '';
+    if (mes) params.append("mes", mes);
+    if (ano) params.append("ano", ano);
+    const suffix = params.toString() ? `?${params.toString()}` : "";
     return apiRequest(`/api/dashboard/categorias-vendidas${suffix}`);
   },
-  
+
   async getMovimentacoesPeriodo(mes, ano) {
     const params = new URLSearchParams();
-    if (mes) params.append('mes', mes);
-    if (ano) params.append('ano', ano);
-    const suffix = params.toString() ? `?${params.toString()}` : '';
+    if (mes) params.append("mes", mes);
+    if (ano) params.append("ano", ano);
+    const suffix = params.toString() ? `?${params.toString()}` : "";
     return apiRequest(`/api/dashboard/movimentacoes-periodo${suffix}`);
   },
-  
+
   async getUltimasMovimentacoes(limite = 10) {
-    return apiRequest(`/api/dashboard/ultimas-movimentacoes?limite=${limite}`);
-  }
+    return apiRequest(`/api/dashboard/ultimas-movimentacoes? limite=${limite}`);
+  },
 };
