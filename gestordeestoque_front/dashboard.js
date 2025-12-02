@@ -1,33 +1,116 @@
 let charts = {};
 
+let dashboardLoading = false;
+
 function initializeDashboard() {
-  loadKPIs();
-  loadCharts();
+  loadKPIsFromAPI();
+  loadChartsFromAPI();
   loadProdutosBaixoEstoque();
 }
 
-// Carregar KPIs
-function loadKPIs() {
+
+async function loadKPIsFromAPI() {
+  try {
+    dashboardLoading = true;
+    showLoadingIndicator(true);
+
+    const mes = new Date().getMonth() + 1;
+    const ano = new Date().getFullYear();
+
+    const kpis = await DashboardAPI.getKPIs(mes, ano);
+
+    if (kpis) {
+      document.getElementById("totalProdutos").textContent = kpis.produtosAtivos || 0;
+      document.getElementById("totalCategorias").textContent = "0"; // Backend não retorna
+      document.getElementById("totalFornecedores").textContent = "0"; // Backend não retorna
+      document.getElementById("produtosBaixoEstoque").textContent = kpis.produtosEstoqueBaixo || 0;
+
+      // Adicionar informações extras do backend
+      const kpisExtras = document.getElementById("kpisExtras");
+      if (kpisExtras) {
+        kpisExtras.innerHTML = `
+          <div class="kpi-card">
+            <h4>Valor Total Estoque</h4>
+            <p>R$ ${(kpis.valorTotalEstoque || 0).toFixed(2)}</p>
+          </div>
+          <div class="kpi-card">
+            <h4>Taxa de Giro</h4>
+            <p>${(kpis.taxaGiroEstoque || 0).toFixed(2)}</p>
+          </div>
+          <div class="kpi-card">
+            <h4>Movimentações (Mês)</h4>
+            <p>${kpis.totalMovimentacoesMes || 0}</p>
+          </div>
+        `;
+      }
+    }
+  } catch (error) {
+    console.warn("Erro ao carregar KPIs da API, usando dados locais:", error);
+    loadKPIsLocal();
+  } finally {
+    dashboardLoading = false;
+    showLoadingIndicator(false);
+  }
+}
+
+// Fallback: Carregar KPIs do localStorage
+function loadKPIsLocal() {
   const produtos = Storage.getAll("produtos");
-  const categorias = Storage.getAll("categorias").filter((c) => c.ativa);
+  const categorias = Storage.getAll("categorias"). filter((c) => c. ativa);
   const fornecedores = Storage.getAll("fornecedores").filter((f) => f.ativo);
 
-  // Produtos com estoque baixo
-  const produtosBaixoEstoque = produtos.filter((produto) => {
+  const produtosBaixoEstoque = produtos. filter((produto) => {
     if (!produto.quantidadeMinima) return false;
     return (produto.estoqueAtual || 0) <= produto.quantidadeMinima;
   });
 
-  document.getElementById("totalProdutos").textContent = produtos.length;
+  document.getElementById("totalProdutos"). textContent = produtos.length;
   document.getElementById("totalCategorias").textContent = categorias.length;
-  document.getElementById("totalFornecedores").textContent =
-    fornecedores.length;
-  document.getElementById("produtosBaixoEstoque").textContent =
-    produtosBaixoEstoque.length;
+  document.getElementById("totalFornecedores").textContent = fornecedores.length;
+  document.getElementById("produtosBaixoEstoque").textContent = produtosBaixoEstoque.length;
 }
 
-// Carregar todos os gráficos
-function loadCharts() {
+async function loadChartsFromAPI() {
+  try {
+    dashboardLoading = true;
+    const mes = new Date().getMonth() + 1;
+    const ano = new Date().getFullYear();
+
+    const [topVendidos, menosVendidos, movimentacoes] = await Promise.all([
+      DashboardAPI.getTopVendidos(mes, ano, 10). catch(() => null),
+      DashboardAPI. getMenosVendidos(mes, ano, 10).catch(() => null),
+      DashboardAPI.getMovimentacoesPeriodo(mes, ano). catch(() => null),
+    ]);
+    if (topVendidos && topVendidos.length > 0) {
+      loadTopSaidasChartFromAPI(topVendidos);
+    } else {
+      loadTopSaidasChart();
+    }
+
+    if (menosVendidos && menosVendidos.length > 0) {
+      loadMenosSaidasChartFromAPI(menosVendidos);
+    } else {
+      loadMenosSaidasChart();
+    }
+
+    loadCategoriasChart();
+    loadEstoqueStatusChart();
+
+    if (movimentacoes && movimentacoes.labels) {
+      loadMovimentacoesChartFromAPI(movimentacoes);
+    } else {
+      loadMovimentacoesChart();
+    }
+  } catch (error) {
+    console.warn("Erro ao carregar gráficos da API, usando dados locais:", error);
+    loadChartsLocal();
+  } finally {
+    dashboardLoading = false;
+  }
+}
+
+// Carregar todos os gráficos (fallback)
+function loadChartsLocal() {
   loadTopSaidasChart();
   loadMenosSaidasChart();
   loadCategoriasChart();
@@ -35,41 +118,21 @@ function loadCharts() {
   loadMovimentacoesChart();
 }
 
-// Gráfico: Top 10 Produtos com Maior Saída
-function loadTopSaidasChart() {
-  const ctx = document.getElementById("topSaidasChart").getContext("2d");
+// ==================== TOP SAÍDAS (API) ====================
+function loadTopSaidasChartFromAPI(dados) {
+  const ctx = document.getElementById("topSaidasChart");
+  if (!ctx) return;
 
-  // Calcular saídas por produto
-  const movimentacoes = Storage.getAll("movimentacoes");
-  const saidasPorProduto = {};
+  const topSaidas = dados.map((item) => ({
+    nome: item.nomeProduto || "N/A",
+    quantidade: item.quantidade || 0,
+  }));
 
-  movimentacoes
-    .filter((m) => m.tipo === "SAIDA")
-    .forEach((mov) => {
-      if (!saidasPorProduto[mov.produtoId]) {
-        saidasPorProduto[mov.produtoId] = 0;
-      }
-      saidasPorProduto[mov.produtoId] += mov.quantidade;
-    });
-
-  // Obter top 10
-  const produtos = Storage.getAll("produtos");
-  const topSaidas = Object.entries(saidasPorProduto)
-    .map(([produtoId, quantidade]) => {
-      const produto = produtos.find((p) => p.id === parseInt(produtoId));
-      return {
-        nome: produto ? produto.nome : "Produto não encontrado",
-        quantidade: quantidade,
-      };
-    })
-    .sort((a, b) => b.quantidade - a.quantidade)
-    .slice(0, 10);
-
-  if (charts.topSaidas) {
+  if (charts. topSaidas) {
     charts.topSaidas.destroy();
   }
 
-  charts.topSaidas = new Chart(ctx, {
+  charts. topSaidas = new Chart(ctx. getContext("2d"), {
     type: "bar",
     data: {
       labels: topSaidas.map((item) => item.nome),
@@ -109,9 +172,11 @@ function loadTopSaidasChart() {
   });
 }
 
-// Gráfico: Top 10 Produtos com Menor Saída
-function loadMenosSaidasChart() {
-  const ctx = document.getElementById("menosSaidasChart").getContext("2d");
+// Gráfico: Top 10 Produtos com Maior Saída (Fallback Local)
+function loadTopSaidasChart() {
+  const ctx = document.getElementById("topSaidasChart");
+  if (!ctx) return;
+
   const movimentacoes = Storage.getAll("movimentacoes");
   const saidasPorProduto = {};
 
@@ -125,7 +190,7 @@ function loadMenosSaidasChart() {
     });
 
   const produtos = Storage.getAll("produtos");
-  const lista = Object.entries(saidasPorProduto)
+  const topSaidas = Object.entries(saidasPorProduto)
     .map(([produtoId, quantidade]) => {
       const produto = produtos.find((p) => p.id === parseInt(produtoId));
       return {
@@ -133,21 +198,74 @@ function loadMenosSaidasChart() {
         quantidade: quantidade,
       };
     })
-    .sort((a, b) => a.quantidade - b.quantidade)
+    .sort((a, b) => b.quantidade - a.quantidade)
     .slice(0, 10);
+
+  if (charts.topSaidas) {
+    charts.topSaidas. destroy();
+  }
+
+  charts.topSaidas = new Chart(ctx.getContext("2d"), {
+    type: "bar",
+    data: {
+      labels: topSaidas.map((item) => item.nome),
+      datasets: [
+        {
+          label: "Quantidade Saída",
+          data: topSaidas.map((item) => item.quantidade),
+          backgroundColor: "rgba(231, 76, 60, 0.8)",
+          borderColor: "rgba(231, 76, 60, 1)",
+          borderWidth: 1,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false,
+        },
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            stepSize: 1,
+          },
+        },
+        x: {
+          ticks: {
+            maxRotation: 45,
+            minRotation: 45,
+          },
+        },
+      },
+    },
+  });
+}
+
+function loadMenosSaidasChartFromAPI(dados) {
+  const ctx = document.getElementById("menosSaidasChart");
+  if (!ctx) return;
+
+  const menosSaidas = dados.map((item) => ({
+    nome: item.nomeProduto || "N/A",
+    quantidade: item.quantidade || 0,
+  }));
 
   if (charts.menosSaidas) {
     charts.menosSaidas.destroy();
   }
 
-  charts.menosSaidas = new Chart(ctx, {
+  charts. menosSaidas = new Chart(ctx.getContext("2d"), {
     type: "bar",
     data: {
-      labels: lista.map((item) => item.nome),
+      labels: menosSaidas. map((item) => item.nome),
       datasets: [
         {
           label: "Quantidade Saída",
-          data: lista.map((item) => item.quantidade),
+          data: menosSaidas.map((item) => item.quantidade),
           backgroundColor: "rgba(52, 152, 219, 0.8)",
           borderColor: "rgba(52, 152, 219, 1)",
           borderWidth: 1,
@@ -166,11 +284,67 @@ function loadMenosSaidasChart() {
   });
 }
 
-document.addEventListener("DOMContentLoaded", carregarCategorias);
+function loadMenosSaidasChart() {
+  const ctx = document.getElementById("menosSaidasChart");
+  if (!ctx) return;
 
-// Gráfico: Distribuição por Categorias
+  const movimentacoes = Storage.getAll("movimentacoes");
+  const saidasPorProduto = {};
+
+  movimentacoes
+    .filter((m) => m.tipo === "SAIDA")
+    .forEach((mov) => {
+      if (! saidasPorProduto[mov.produtoId]) {
+        saidasPorProduto[mov.produtoId] = 0;
+      }
+      saidasPorProduto[mov.produtoId] += mov.quantidade;
+    });
+
+  const produtos = Storage. getAll("produtos");
+  const lista = Object.entries(saidasPorProduto)
+    .map(([produtoId, quantidade]) => {
+      const produto = produtos.find((p) => p.id === parseInt(produtoId));
+      return {
+        nome: produto ? produto.nome : "Produto não encontrado",
+        quantidade: quantidade,
+      };
+    })
+    .sort((a, b) => a.quantidade - b.quantidade)
+    . slice(0, 10);
+
+  if (charts.menosSaidas) {
+    charts. menosSaidas.destroy();
+  }
+
+  charts.menosSaidas = new Chart(ctx.getContext("2d"), {
+    type: "bar",
+    data: {
+      labels: lista.map((item) => item.nome),
+      datasets: [
+        {
+          label: "Quantidade Saída",
+          data: lista.map((item) => item.quantidade),
+          backgroundColor: "rgba(52, 152, 219, 0. 8)",
+          borderColor: "rgba(52, 152, 219, 1)",
+          borderWidth: 1,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1 } },
+        x: { ticks: { maxRotation: 45, minRotation: 45 } },
+      },
+    },
+  });
+}
+
 function loadCategoriasChart() {
-  const ctx = document.getElementById("categoriasChart").getContext("2d");
+  const ctx = document.getElementById("categoriasChart");
+  if (! ctx) return;
 
   const produtos = Storage.getAll("produtos");
   const categorias = Storage.getAll("categorias");
@@ -178,8 +352,8 @@ function loadCategoriasChart() {
   const produtosPorCategoria = {};
 
   produtos.forEach((produto) => {
-    const categoria = categorias.find((c) => c.id === produto.categoriaId);
-    const nomeCategoria = categoria ? categoria.nome : "Sem categoria";
+    const categoria = categorias.find((c) => c. id === produto.categoriaId);
+    const nomeCategoria = categoria ? categoria. nome : "Sem categoria";
 
     if (!produtosPorCategoria[nomeCategoria]) {
       produtosPorCategoria[nomeCategoria] = 0;
@@ -202,7 +376,7 @@ function loadCategoriasChart() {
     charts.categorias.destroy();
   }
 
-  charts.categorias = new Chart(ctx, {
+  charts.categorias = new Chart(ctx.getContext("2d"), {
     type: "doughnut",
     data: {
       labels: Object.keys(produtosPorCategoria),
@@ -227,9 +401,9 @@ function loadCategoriasChart() {
   });
 }
 
-// Gráfico: Status do Estoque
 function loadEstoqueStatusChart() {
-  const ctx = document.getElementById("estoqueStatusChart").getContext("2d");
+  const ctx = document.getElementById("estoqueStatusChart");
+  if (!ctx) return;
 
   const produtos = Storage.getAll("produtos");
   let semEstoque = 0;
@@ -240,7 +414,7 @@ function loadEstoqueStatusChart() {
     const produtoObj = new Produto(produto);
     const situacao = produtoObj.getSituacaoEstoque();
 
-    switch (situacao.status) {
+    switch (situacao. status) {
       case "SEM_ESTOQUE":
         semEstoque++;
         break;
@@ -257,7 +431,7 @@ function loadEstoqueStatusChart() {
     charts.estoqueStatus.destroy();
   }
 
-  charts.estoqueStatus = new Chart(ctx, {
+  charts.estoqueStatus = new Chart(ctx.getContext("2d"), {
     type: "pie",
     data: {
       labels: ["Sem Estoque", "Estoque Baixo", "Estoque OK"],
@@ -286,15 +460,64 @@ function loadEstoqueStatusChart() {
   });
 }
 
-// Gráfico: Movimentações dos Últimos 7 Dias
+function loadMovimentacoesChartFromAPI(dados) {
+  const ctx = document.getElementById("movimentacoesChart");
+  if (! ctx) return;
+
+  if (charts.movimentacoes) {
+    charts.movimentacoes. destroy();
+  }
+
+  charts.movimentacoes = new Chart(ctx.getContext("2d"), {
+    type: "line",
+    data: {
+      labels: dados.labels || [],
+      datasets: [
+        {
+          label: "Entradas",
+          data: dados. entradas || [],
+          borderColor: "rgba(46, 204, 113, 1)",
+          backgroundColor: "rgba(46, 204, 113, 0.1)",
+          fill: true,
+          tension: 0.4,
+        },
+        {
+          label: "Saídas",
+          data: dados.saidas || [],
+          borderColor: "rgba(231, 76, 60, 1)",
+          backgroundColor: "rgba(231, 76, 60, 0. 1)",
+          fill: true,
+          tension: 0.4,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: "bottom",
+        },
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            stepSize: 1,
+          },
+        },
+      },
+    },
+  });
+}
+
 function loadMovimentacoesChart() {
-  const ctx = document.getElementById("movimentacoesChart").getContext("2d");
+  const ctx = document.getElementById("movimentacoesChart");
+  if (!ctx) return;
 
   const movimentacoes = Storage.getAll("movimentacoes");
   const hoje = new Date();
-  const seteDiasAtras = new Date(hoje.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-  // Criar array dos últimos 7 dias
   const dias = [];
   const entradas = [];
   const saidas = [];
@@ -307,19 +530,18 @@ function loadMovimentacoesChart() {
     });
     dias.push(dataStr);
 
-    // Calcular entradas e saídas do dia
     const movimentacoesDoDia = movimentacoes.filter((mov) => {
       const movData = new Date(mov.dataHora);
-      return movData.toDateString() === data.toDateString();
+      return movData. toDateString() === data.toDateString();
     });
 
     const entradasDoDia = movimentacoesDoDia
       .filter((mov) => mov.tipo === "ENTRADA")
-      .reduce((total, mov) => total + mov.quantidade, 0);
+      .reduce((total, mov) => total + mov. quantidade, 0);
 
     const saidasDoDia = movimentacoesDoDia
       .filter((mov) => mov.tipo === "SAIDA")
-      .reduce((total, mov) => total + mov.quantidade, 0);
+      . reduce((total, mov) => total + mov.quantidade, 0);
 
     entradas.push(entradasDoDia);
     saidas.push(saidasDoDia);
@@ -329,7 +551,7 @@ function loadMovimentacoesChart() {
     charts.movimentacoes.destroy();
   }
 
-  charts.movimentacoes = new Chart(ctx, {
+  charts.movimentacoes = new Chart(ctx.getContext("2d"), {
     type: "line",
     data: {
       labels: dias,
@@ -372,15 +594,16 @@ function loadMovimentacoesChart() {
   });
 }
 
-// Carregar produtos com estoque baixo
 function loadProdutosBaixoEstoque() {
   const produtos = Storage.getAll("produtos");
   const produtosBaixoEstoque = produtos.filter((produto) => {
-    if (!produto.quantidadeMinima) return false;
+    if (! produto.quantidadeMinima) return false;
     return (produto.estoqueAtual || 0) <= produto.quantidadeMinima;
   });
 
   const tbody = document.querySelector("#produtosBaixoEstoqueTable tbody");
+  if (!tbody) return;
+
   tbody.innerHTML = "";
 
   if (produtosBaixoEstoque.length === 0) {
@@ -405,15 +628,21 @@ function loadProdutosBaixoEstoque() {
   });
 }
 
+function showLoadingIndicator(show) {
+  const indicator = document.getElementById("dashboardLoading");
+  if (indicator) {
+    indicator.style. display = show ? "block" : "none";
+  }
+}
+
 // Atualizar dashboard
 function refreshDashboard() {
-  loadKPIs();
-  loadCharts();
+  loadKPIsFromAPI();
+  loadChartsFromAPI();
   loadProdutosBaixoEstoque();
   showAlert("Dashboard atualizado com sucesso!", "success");
 }
 
-// Inicializar dashboard quando a aba for ativada
 function loadTabData(tab) {
   switch (tab) {
     case "dashboard":
